@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package runner
+package ctls
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 	"math/big"
 	"time"
 
-	"boringssl.googlesource.com/boringssl/ssl/test/runner/ed25519"
+	"golang.org/x/crypto/ed25519"
 )
 
 // serverHandshakeState contains details of a server handshake in progress.

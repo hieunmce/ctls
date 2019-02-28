@@ -12,7 +12,7 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-package runner
+package ctls
 
 import (
 	"bytes"
@@ -66,7 +66,7 @@ var (
 	fuzzer             = flag.Bool("fuzzer", false, "If true, tests against a BoringSSL built in fuzzer mode.")
 	transcriptDir      = flag.String("transcript-dir", "", "The directory in which to write transcripts.")
 	idleTimeout        = flag.Duration("idle-timeout", 15*time.Second, "The number of seconds to wait for a read or write to bssl_shim.")
-	deterministic      = flag.Bool("deterministic", false, "If true, uses a deterministic PRNG in the runner.")
+	deterministic      = flag.Bool("deterministic", false, "If true, uses a deterministic PRNG in the ctls.")
 	allowUnimplemented = flag.Bool("allow-unimplemented", false, "If true, report pass even if some tests are unimplemented.")
 	looseErrors        = flag.Bool("loose-errors", false, "If true, allow shims to report an untranslated error code.")
 	shimConfigFile     = flag.String("shim-config", "", "A config file to use to configure the tests for this shim.")
@@ -385,7 +385,7 @@ func createDelegatedCredential(config delegatedCredentialConfig, parentDER []byt
 	return dc, privPKCS8, nil
 }
 
-func getRunnerCertificate(t testCert) Certificate {
+func getctlsCertificate(t testCert) Certificate {
 	for _, cert := range testCerts {
 		if cert.id == t {
 			return *cert.cert
@@ -557,15 +557,15 @@ type testCase struct {
 	// handshake.
 	sendPrefix string
 	// shimWritesFirst controls whether the shim sends an initial "hello"
-	// message before doing a roundtrip with the runner.
+	// message before doing a roundtrip with the ctls.
 	shimWritesFirst bool
 	// readWithUnfinishedWrite behaves like shimWritesFirst, but the shim
-	// does not complete the write until responding to the first runner
+	// does not complete the write until responding to the first ctls
 	// message.
 	readWithUnfinishedWrite bool
 	// shimShutsDown, if true, runs a test where the shim shuts down the
 	// connection immediately after the handshake rather than echoing
-	// messages from the runner. The runner will default to not sending
+	// messages from the ctls. The ctls will default to not sending
 	// application data.
 	shimShutsDown bool
 	// renegotiate indicates the number of times the connection should be
@@ -1050,7 +1050,7 @@ func doExchange(test *testCase, config *Config, conn net.Conn, isResume bool, tr
 			continue
 		}
 
-		// Process the KeyUpdate ACK. However many KeyUpdates the runner
+		// Process the KeyUpdate ACK. However many KeyUpdates the ctls
 		// sends, the shim should respond only once.
 		if test.sendKeyUpdates > 0 && test.keyUpdateRequest == keyUpdateRequested {
 			if err := tlsConn.ReadKeyUpdateACK(); err != nil {
@@ -5106,7 +5106,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 								"-expect-ticket-supports-early-data",
 								"-reverify-on-resume",
 								"-on-resume-shim-writes-first",
-								// Session tickets are disabled, so the runner will not send a ticket.
+								// Session tickets are disabled, so the ctls will not send a ticket.
 								"-on-retry-expect-no-session",
 								"-expect-reject-early-data",
 							}, flags...),
@@ -5156,7 +5156,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 								"-expect-ticket-supports-early-data",
 								"-reverify-on-resume",
 								"-on-resume-shim-writes-first",
-								// Session tickets are disabled, so the runner will not send a ticket.
+								// Session tickets are disabled, so the ctls will not send a ticket.
 								"-on-retry-expect-no-session",
 								"-on-retry-verify-fail",
 								"-expect-reject-early-data",
@@ -5528,9 +5528,9 @@ read alert 1 0
 			expectedNextProtoType: npn,
 		})
 
-		// Bidirectional shutdown with the runner initiating.
+		// Bidirectional shutdown with the ctls initiating.
 		tests = append(tests, testCase{
-			name: "Shutdown-Runner",
+			name: "Shutdown-ctls",
 			config: Config{
 				Bugs: ProtocolBugs{
 					ExpectCloseNotify: true,
@@ -5540,7 +5540,7 @@ read alert 1 0
 		})
 
 		if !config.implicitHandshake {
-			// Bidirectional shutdown with the shim initiating. The runner,
+			// Bidirectional shutdown with the shim initiating. The ctls,
 			// in the meantime, sends garbage before the close_notify which
 			// the shim must ignore. This test is disabled under implicit
 			// handshake tests because the shim never reads or writes.
@@ -5786,14 +5786,14 @@ func addVersionNegotiationTests() {
 
 			flags2 := []string{"-max-version", shimVers.shimFlag(protocol)}
 
-			// Test configuring the runner's maximum version.
-			for _, runnerVers := range allVersions(protocol) {
+			// Test configuring the ctls's maximum version.
+			for _, ctlsVers := range allVersions(protocol) {
 				expectedVersion := shimVers.version
-				if runnerVers.version < shimVers.version {
-					expectedVersion = runnerVers.version
+				if ctlsVers.version < shimVers.version {
+					expectedVersion = ctlsVers.version
 				}
 
-				suffix := shimVers.name + "-" + runnerVers.name
+				suffix := shimVers.name + "-" + ctlsVers.name
 				if protocol == dtls {
 					suffix += "-DTLS"
 				}
@@ -5815,7 +5815,7 @@ func addVersionNegotiationTests() {
 					testType: clientTest,
 					name:     "VersionNegotiation-Client-" + suffix,
 					config: Config{
-						MaxVersion: runnerVers.version,
+						MaxVersion: ctlsVers.version,
 						Bugs: ProtocolBugs{
 							ExpectInitialRecordVersion: clientVers,
 						},
@@ -5828,7 +5828,7 @@ func addVersionNegotiationTests() {
 					testType: clientTest,
 					name:     "VersionNegotiation-Client2-" + suffix,
 					config: Config{
-						MaxVersion: runnerVers.version,
+						MaxVersion: ctlsVers.version,
 						Bugs: ProtocolBugs{
 							ExpectInitialRecordVersion: clientVers,
 						},
@@ -5842,7 +5842,7 @@ func addVersionNegotiationTests() {
 					testType: serverTest,
 					name:     "VersionNegotiation-Server-" + suffix,
 					config: Config{
-						MaxVersion: runnerVers.version,
+						MaxVersion: ctlsVers.version,
 						Bugs: ProtocolBugs{
 							ExpectInitialRecordVersion: serverVers,
 						},
@@ -5855,7 +5855,7 @@ func addVersionNegotiationTests() {
 					testType: serverTest,
 					name:     "VersionNegotiation-Server2-" + suffix,
 					config: Config{
-						MaxVersion: runnerVers.version,
+						MaxVersion: ctlsVers.version,
 						Bugs: ProtocolBugs{
 							ExpectInitialRecordVersion: serverVers,
 						},
@@ -6227,8 +6227,8 @@ func addMinimumVersionTests() {
 
 			flags2 := []string{"-min-version", shimVers.shimFlag(protocol)}
 
-			for _, runnerVers := range allVersions(protocol) {
-				suffix := shimVers.name + "-" + runnerVers.name
+			for _, ctlsVers := range allVersions(protocol) {
+				suffix := shimVers.name + "-" + ctlsVers.name
 				if protocol == dtls {
 					suffix += "-DTLS"
 				}
@@ -6236,8 +6236,8 @@ func addMinimumVersionTests() {
 				var expectedVersion uint16
 				var shouldFail bool
 				var expectedError, expectedLocalError string
-				if runnerVers.version >= shimVers.version {
-					expectedVersion = runnerVers.version
+				if ctlsVers.version >= shimVers.version {
+					expectedVersion = ctlsVers.version
 				} else {
 					shouldFail = true
 					expectedError = ":UNSUPPORTED_PROTOCOL:"
@@ -6249,12 +6249,12 @@ func addMinimumVersionTests() {
 					testType: clientTest,
 					name:     "MinimumVersion-Client-" + suffix,
 					config: Config{
-						MaxVersion: runnerVers.version,
+						MaxVersion: ctlsVers.version,
 						Bugs: ProtocolBugs{
 							// Ensure the server does not decline to
 							// select a version (versions extension) or
 							// cipher (some ciphers depend on versions).
-							NegotiateVersion:            runnerVers.wire(protocol),
+							NegotiateVersion:            ctlsVers.wire(protocol),
 							IgnorePeerCipherPreferences: shouldFail,
 						},
 					},
@@ -6269,12 +6269,12 @@ func addMinimumVersionTests() {
 					testType: clientTest,
 					name:     "MinimumVersion-Client2-" + suffix,
 					config: Config{
-						MaxVersion: runnerVers.version,
+						MaxVersion: ctlsVers.version,
 						Bugs: ProtocolBugs{
 							// Ensure the server does not decline to
 							// select a version (versions extension) or
 							// cipher (some ciphers depend on versions).
-							NegotiateVersion:            runnerVers.wire(protocol),
+							NegotiateVersion:            ctlsVers.wire(protocol),
 							IgnorePeerCipherPreferences: shouldFail,
 						},
 					},
@@ -6290,7 +6290,7 @@ func addMinimumVersionTests() {
 					testType: serverTest,
 					name:     "MinimumVersion-Server-" + suffix,
 					config: Config{
-						MaxVersion: runnerVers.version,
+						MaxVersion: ctlsVers.version,
 					},
 					flags:              flags,
 					expectedVersion:    expectedVersion,
@@ -6303,7 +6303,7 @@ func addMinimumVersionTests() {
 					testType: serverTest,
 					name:     "MinimumVersion-Server2-" + suffix,
 					config: Config{
-						MaxVersion: runnerVers.version,
+						MaxVersion: ctlsVers.version,
 					},
 					flags:              flags2,
 					expectedVersion:    expectedVersion,
@@ -7491,7 +7491,7 @@ func addExtensionTests() {
 	})
 
 	// Test that illegal extensions in TLS 1.3 are declined by the server if
-	// offered in ClientHello. The runner's server will fail if this occurs,
+	// offered in ClientHello. The ctls's server will fail if this occurs,
 	// so we exercise the offering path. (EMS and Renegotiation Info are
 	// implicit in every test.)
 	testCases = append(testCases, testCase{
@@ -7915,7 +7915,7 @@ func addResumptionVersionTests() {
 			CipherSuites: []uint16{TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256},
 			Bugs: ProtocolBugs{
 				FilterTicket: func(in []byte) ([]byte, error) {
-					// If the client (runner) offers ChaCha20-Poly1305 first, the
+					// If the client (ctls) offers ChaCha20-Poly1305 first, the
 					// server (shim) always prefers it. Switch it to AES-GCM.
 					return SetShimTicketCipherSuite(in, TLS_AES_128_GCM_SHA256)
 				},
@@ -8825,7 +8825,7 @@ func addSignatureAlgorithmTests() {
 				name:     "ClientAuth-Verify" + suffix,
 				config: Config{
 					MaxVersion:   ver.version,
-					Certificates: []Certificate{getRunnerCertificate(alg.cert)},
+					Certificates: []Certificate{getctlsCertificate(alg.cert)},
 					SignSignatureAlgorithms: []signatureAlgorithm{
 						alg.id,
 					},
@@ -8878,7 +8878,7 @@ func addSignatureAlgorithmTests() {
 				name: "ServerAuth-Verify" + suffix,
 				config: Config{
 					MaxVersion:   ver.version,
-					Certificates: []Certificate{getRunnerCertificate(alg.cert)},
+					Certificates: []Certificate{getctlsCertificate(alg.cert)},
 					CipherSuites: signingCiphers,
 					SignSignatureAlgorithms: []signatureAlgorithm{
 						alg.id,
@@ -8909,7 +8909,7 @@ func addSignatureAlgorithmTests() {
 					name:     "ClientAuth-InvalidSignature" + suffix,
 					config: Config{
 						MaxVersion:   ver.version,
-						Certificates: []Certificate{getRunnerCertificate(alg.cert)},
+						Certificates: []Certificate{getctlsCertificate(alg.cert)},
 						SignSignatureAlgorithms: []signatureAlgorithm{
 							alg.id,
 						},
@@ -8930,7 +8930,7 @@ func addSignatureAlgorithmTests() {
 					name: "ServerAuth-InvalidSignature" + suffix,
 					config: Config{
 						MaxVersion:   ver.version,
-						Certificates: []Certificate{getRunnerCertificate(alg.cert)},
+						Certificates: []Certificate{getctlsCertificate(alg.cert)},
 						CipherSuites: signingCiphers,
 						SignSignatureAlgorithms: []signatureAlgorithm{
 							alg.id,
@@ -9703,7 +9703,7 @@ func addSignatureAlgorithmTests() {
 		},
 	})
 
-	// Test that the client advertises a set which the runner can find
+	// Test that the client advertises a set which the ctls can find
 	// nothing in common with.
 	testCases = append(testCases, testCase{
 		name: "VerifyPreferences-NoCommonAlgorithms",
@@ -9785,7 +9785,7 @@ func addSignatureAlgorithmTests() {
 		},
 		// If verify preferences were explicitly configured without RSA-PSS support,
 		// NoCerts is a no-op and the shim correctly only sends one extension.
-		// (This is checked internally in the runner.)
+		// (This is checked internally in the ctls.)
 		{
 			name:                "ConfigNoPSS",
 			expectRSAPSSSupport: RSAPSSSupportNone,
@@ -9904,13 +9904,13 @@ var shortTimeouts = []time.Duration{
 
 func addDTLSRetransmitTests() {
 	// These tests work by coordinating some behavior on both the shim and
-	// the runner.
+	// the ctls.
 	//
-	// TimeoutSchedule configures the runner to send a series of timeout
+	// TimeoutSchedule configures the ctls to send a series of timeout
 	// opcodes to the shim (see packetAdaptor) immediately before reading
 	// each peer handshake flight N. The timeout opcode both simulates a
 	// timeout in the shim and acts as a synchronization point to help the
-	// runner bracket each handshake flight.
+	// ctls bracket each handshake flight.
 	//
 	// We assume the shim does not read from the channel eagerly. It must
 	// first wait until it has sent flight N and is ready to receive
@@ -9918,7 +9918,7 @@ func addDTLSRetransmitTests() {
 	// opcode. It must then immediately respond with a timeout ACK and act
 	// as if the shim was idle for the specified amount of time.
 	//
-	// The runner then drops all packets received before the ACK and
+	// The ctls then drops all packets received before the ACK and
 	// continues waiting for flight N. This ordering results in one attempt
 	// at sending flight N to be dropped. For the test to complete, the
 	// shim must send flight N again, testing that the shim implements DTLS
@@ -10044,7 +10044,7 @@ func addDTLSRetransmitTests() {
 
 	// If the shim sends the last Finished (server full or client resume
 	// handshakes), it must retransmit that Finished when it sees a
-	// post-handshake penultimate Finished from the runner. The above tests
+	// post-handshake penultimate Finished from the ctls. The above tests
 	// cover this. Conversely, if the shim sends the penultimate Finished
 	// (client full or server resume), test that it does not retransmit.
 	testCases = append(testCases, testCase{
@@ -10484,7 +10484,7 @@ func addCustomExtensionTests() {
 		shouldFail:    true,
 		expectedError: ":UNEXPECTED_EXTENSION:",
 		// The shim must send an alert, but alerts at this point do not
-		// get successfully decrypted by the runner.
+		// get successfully decrypted by the ctls.
 		expectedLocalError: "local error: bad record MAC",
 	})
 	testCases = append(testCases, testCase{
@@ -10502,7 +10502,7 @@ func addCustomExtensionTests() {
 		shouldFail:    true,
 		expectedError: ":UNEXPECTED_EXTENSION:",
 		// The shim must send an alert, but alerts at this point do not
-		// get successfully decrypted by the runner.
+		// get successfully decrypted by the ctls.
 		expectedLocalError: "local error: bad record MAC",
 	})
 
@@ -12099,7 +12099,7 @@ func addWrongMessageTypeTests() {
 		if t.test.config.MaxVersion >= VersionTLS13 && t.messageType == typeServerHello {
 			// In TLS 1.3, a bad ServerHello means the client sends
 			// an unencrypted alert while the server expects
-			// encryption, so the alert is not readable by runner.
+			// encryption, so the alert is not readable by ctls.
 			t.test.expectedLocalError = "local error: bad record MAC"
 		}
 
@@ -12138,7 +12138,7 @@ func addTrailingMessageDataTests() {
 		if t.test.config.MaxVersion >= VersionTLS13 && t.messageType == typeServerHello {
 			// In TLS 1.3, a bad ServerHello means the client sends
 			// an unencrypted alert while the server expects
-			// encryption, so the alert is not readable by runner.
+			// encryption, so the alert is not readable by ctls.
 			t.test.expectedLocalError = "local error: bad record MAC"
 		}
 
@@ -13003,7 +13003,7 @@ func addTLS13HandshakeTests() {
 			"-on-initial-expect-peer-cert-file", path.Join(*resourceDir, rsaCertificateFile),
 			"-on-resume-expect-peer-cert-file", path.Join(*resourceDir, rsaCertificateFile),
 			"-on-retry-expect-peer-cert-file", path.Join(*resourceDir, ecdsaP256CertificateFile),
-			// Session tickets are disabled, so the runner will not send a ticket.
+			// Session tickets are disabled, so the ctls will not send a ticket.
 			"-on-retry-expect-no-session",
 		},
 	})

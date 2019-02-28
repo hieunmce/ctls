@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package runner
+package ctls
 
 import (
 	"crypto"
@@ -16,9 +16,9 @@ import (
 	"io"
 	"math/big"
 
-	"boringssl.googlesource.com/boringssl/ssl/test/runner/curve25519"
-	"boringssl.googlesource.com/boringssl/ssl/test/runner/ed25519"
-	"boringssl.googlesource.com/boringssl/ssl/test/runner/hrss"
+	"github.com/hieunmce/ctls/hrss"
+	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/ed25519"
 )
 
 type keyType int

@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package tls partially implements TLS 1.2, as specified in RFC 5246.
-package runner
+package ctls
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"boringssl.googlesource.com/boringssl/ssl/test/runner/ed25519"
+	"golang.org/x/crypto/ed25519"
 )
 
 // Server returns a new TLS server side connection

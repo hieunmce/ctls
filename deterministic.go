@@ -12,14 +12,14 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-package runner
+package ctls
 
 import (
 	"encoding/binary"
 )
 
 // Use a different key from crypto/rand/deterministic.c.
-var deterministicRandKey = []byte("runner deterministic key 0123456")
+var deterministicRandKey = []byte("ctls deterministic key 0123456")
 
 type deterministicRand struct {
 	numCalls uint64

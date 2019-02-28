@@ -12,7 +12,7 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-package runner
+package ctls
 
 import (
 	"crypto/cipher"
@@ -20,7 +20,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"boringssl.googlesource.com/boringssl/ssl/test/runner/poly1305"
+	"golang.org/x/crypto/poly1305"
 )
 
 // See RFC 7539.
